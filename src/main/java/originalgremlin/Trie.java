@@ -11,8 +11,38 @@ public class Trie {
         size = 0;
     }
 
+    public Trie (Iterable<String> keys) {
+        this();
+        insert(keys);
+    }
+
     public int getSize () {
         return size;
+    }
+
+    public int getSize (String prefix) {
+        int rv = 0;
+        Stack<Node> stack = new Stack<>();
+        Node current = find(prefix);
+        if (current != null) {
+            stack.push(current);
+        }
+        while (!stack.isEmpty()) {
+            current = stack.pop();
+            if (current.isTerminal()) {
+                rv++;
+            }
+            for (Node child : current.children) {
+                if (child != null) {
+                    stack.push(child);
+                }
+            }
+        }
+        return rv;
+    }
+
+    public boolean isEmpty () {
+        return getSize() == 0;
     }
 
     public void insert (String s) {
@@ -26,12 +56,23 @@ public class Trie {
         }
     }
 
+    public void insert (Iterable<String> keys) {
+        for (String key : keys) {
+            insert(key);
+        }
+    }
+
     public void delete (String s) {
         Node node = find(s);
         if ((node != null) && (node.isTerminal())) {
             node.clearTerminal();
             size--;
         }
+    }
+
+    public void clear () {
+        root = new Node();
+        size = 0;
     }
 
     public boolean contains (String s) {
@@ -50,45 +91,53 @@ public class Trie {
         return current;
     }
 
-    public Vector<String> suffixes (String s) {
-        Vector<String> rv = new Vector<>();
-        Stack<Node> stack = new Stack<>();
-        stack.push(find(s));
-        Node current;
-        do {
-            current = stack.pop();
-            if (current == null) {
-                continue;
+    public Collection<String> getAll () {
+        return getAll(new StringBuilder(), root);
+    }
+
+    public Collection<String> getAll (String prefix) {
+        return getAll(new StringBuilder(prefix), find(prefix));
+    }
+
+    private Collection<String> getAll (StringBuilder prefix, Node root) {
+        LinkedList<String> rv = new LinkedList<>();
+        if (root == null) {
+            return rv;
+        } else {
+            if (root.isTerminal()) {
+                rv.addLast(prefix.toString());
             }
-            if (current.isTerminal()) {
-                rv.add(current.toString());
+            for (int i = 0; i < Node.BRANCHES; i++) {
+                Node child = root.children[i];
+                if (child != null) {
+                    prefix.append(Character.toChars(i));
+                    rv.addAll(getAll(prefix, child));
+                    prefix.deleteCharAt(prefix.length() - 1);
+                }
             }
-            for (Node child : current.children.values()) {
-                stack.add(child);
-            }
-        } while (!stack.isEmpty());
-        return rv;
+            return rv;
+        }
     }
 
     private static class Node {
+        final static int BRANCHES = 256;   // extended ASCII
+        Node[] children;
         boolean terminal;
-        Map<Character, Node> children;
 
         public Node () {
+            children = new Node[BRANCHES];
             terminal = false;
-            children = new TreeMap<>();
         }
 
-        public Node getChild (Character c) {
-            return children.get(c);
+        public Node getChild (char c) {
+            return children[c];
         }
 
-        public Node addChild (Character c) {
-            if (children.containsKey(c)) {
-                return children.get(c);
-            } else {
-                return children.put(c, new Node());
+        public Node addChild (char c) {
+            if (children[c] == null) {
+                children[c] = new Node();
             }
+            return children[c];
         }
 
         public boolean isTerminal () {
